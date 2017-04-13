@@ -1,3 +1,4 @@
+
 // Final Project v 0.1
 // Microprocessors for Robotics 525.410
 // Doyle 4.11.17
@@ -5,6 +6,7 @@
 #include <MeAuriga.h>
 #include <Arduino.h>
 #define BUZZER_PORT 45
+
 
 MeEncoderOnBoard Encoder_1(SLOT1); // 1 is right, needs negative value to move forward
 MeEncoderOnBoard Encoder_2(SLOT2); // 2 is left, needs positive value to move forward
@@ -20,6 +22,7 @@ volatile int marcoMotionState = WAITING_FOR_HEADING;
 // define tasks
 void TaskAnalogRead( void *pvParameters );
 void TaskMotion( void *pvParameters );
+void TaskController( void *pvParameters );
 // void TaskParseControls( void *pvParameters);
 
 void isr_process_encoder1(void)
@@ -85,6 +88,14 @@ void setup()
       , NULL
       , 1 // priority
       , NULL );
+
+   xTaskCreate(
+      TaskController
+      , (const portCHAR *)"Controller"
+      , 128 // Stack size
+      , NULL
+      , 1 // priority
+      , NULL );                                             
 }
    
 void loop()
