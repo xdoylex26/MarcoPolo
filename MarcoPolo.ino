@@ -322,6 +322,8 @@ void TaskMotion(void *pvParameters)
         break;
 
         case WAITING_FOR_HEADING:
+            delay(1000);
+            no_direction = SET;  //This is my method to restart the "bearing determination" but this will be something we will do only when we want a new bearing (state machine maybe?
             Encoder_1.setPulsePos(0);
             Encoder_2.setPulsePos(0);
             Encoder_1.moveTo(0, 128);
@@ -360,6 +362,7 @@ void TaskMotion(void *pvParameters)
                     delay(1000);
                     latched_soundHeading = degree;  //This is the latch that you had below.  I just brought it into the code that I know works
                     degree = 0; 
+                    marcoMotionState = IN_PURSUIT_TURNING;
                   }  
 
             /* Check global ADC flagbyte for new heading information; latch the current value to prevent race conditions */
@@ -370,17 +373,18 @@ void TaskMotion(void *pvParameters)
 
             /* 
              * Non-zero means some direction has been determined, other states decode this information to 
-             * determine how to move. This byte should only be set by the ADC ISR 
+             * determine how to move. This byte should only be set by the ADC ISR .  
+             *It is possible to have a 0 degree heading, so i put the change of the state machine into the while loop if we have a no bearing.
              */
-            if(0 != latched_soundHeading){
-                /* Clear the old sound heading after we've latched it */
-                ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-                    g_soundHeading = 0;
-                }
+//             if(0 != latched_soundHeading){
+//                 /* Clear the old sound heading after we've latched it */
+//                 ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+//                     g_soundHeading = 0;
+//                 }
 
-                /* Disable ADC before moving as we do not need to waste cycles */
-                marcoMotionState = IN_PURSUIT_TURNING;
-            }
+//                 /* Disable ADC before moving as we do not need to waste cycles */
+//                 marcoMotionState = IN_PURSUIT_TURNING;
+//             }
 
             break;
 
