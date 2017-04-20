@@ -4,11 +4,13 @@
 MeUSBHost usbhost(PORT_5);
 volatile uint8_t g_nes_state = 0;
 
-struct retro_controller_map {
+/* Structure overlay on the received buffer (native format) */
+struct retro_map {
     uint8_t reserved[3];
-    uint8_t dpad[2];    /* First byte maps to LEFT/RIGHT, then second byte is UP/DOWN */
+    uint8_t dpad[2]; /* First byte maps to LEFT/RIGHT, then second byte is UP/DOWN */
     uint8_t r_buttons;
     uint8_t b_buttons;
+    uint8_t reserved2;
 } __attribute__((packed));
 
 
@@ -26,7 +28,7 @@ enum {
 
 
 /* Simpler mapping to encode ever button state into a single byte */
-enum simple_button_encode {
+enum {
     NES_UP      = 0x01,
     NES_DOWN    = 0x02,
     NES_LEFT    = 0x04,
@@ -49,12 +51,12 @@ void wait_for_controller(void)
 
 void controller_parse(const uint8_t *buf, int len)
 {
-    static struct retro_controller_map last_map = {0};
-    struct retro_controller_map *cmap = (struct retro_controller_map *) buf;
+    static struct retro_map last_map = {0};
+    struct retro_map *cmap = (struct retro_map *) buf;
     uint8_t local_button_map = 0;
 
     /* First, check to see if anything has changed from the last run (most common state is no) */
-    if(0 == memcmp(&last_map, cmap, sizeof(struct retro_controller_map)))
+    if(0 == memcmp(&last_map, cmap, sizeof(struct retro_map)))
         return;
 
     if(cmap->r_buttons & BUTTON_A){
@@ -103,7 +105,7 @@ void controller_parse(const uint8_t *buf, int len)
     g_nes_state = local_button_map;
     
     /* Copy the contents of the map to a cache for later */
-    memcpy(&last_map, buf, sizeof(struct retro_controller_map));
+    memcpy(&last_map, buf, sizeof(struct retro_map));
 }
 
 
@@ -118,6 +120,5 @@ void TaskController(void *pvParameters)
     while(1) {
         len = usbhost.host_recv();
         controller_parse((uint8_t *)usbhost.RECV_BUFFER, len);
-        delay(250);
     }
 }

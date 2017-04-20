@@ -6,6 +6,8 @@
 #include <MeAuriga.h>
 #include <Arduino.h>
 #include <util/atomic.h>
+#include "project.h"
+
 #define BUZZER_PORT 45
 
 
@@ -67,7 +69,8 @@ void setup()
     attachInterrupt(Encoder_1.getIntNum(), isr_process_encoder1, RISING);
     attachInterrupt(Encoder_2.getIntNum(), isr_process_encoder2, RISING);
     Serial.begin(115200);
-
+    prelude_report();
+    
     //Set PWM 8KHz
     TCCR1A = _BV(WGM10);
     TCCR1B = _BV(CS11) | _BV(WGM12);
