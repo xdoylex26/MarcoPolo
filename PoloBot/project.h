@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#define VER "1.0"
+#define VER "PoloBot"
 #define AUTHORS "Branden, Mark, Nick"
 
 

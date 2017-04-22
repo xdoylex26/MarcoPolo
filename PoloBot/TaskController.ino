@@ -1,8 +1,9 @@
 #include "MeUSBHost.h"
+#include "TaskController.h"
 
 
 MeUSBHost usbhost(PORT_5);
-volatile uint8_t g_nes_state = 0;
+volatile uint8_t g_controller_state = 0;
 
 /* Structure overlay on the received buffer (native format) */
 struct retro_map {
@@ -26,20 +27,6 @@ enum {
     BUTTON_RIGHT =  0x80
 };
 
-
-/* Simpler mapping to encode ever button state into a single byte */
-enum {
-    NES_UP      = 0x01,
-    NES_DOWN    = 0x02,
-    NES_LEFT    = 0x04,
-    NES_RIGHT   = 0x08,
-    NES_A       = 0x10,
-    NES_B       = 0x20,
-    NES_START   = 0x40,
-    NES_SELECT  = 0x80
-};
-
-
 void wait_for_controller(void)
 {
     while(0 == usbhost.device_online) {
@@ -59,50 +46,32 @@ void controller_parse(const uint8_t *buf, int len)
     if(0 == memcmp(&last_map, cmap, sizeof(struct retro_map)))
         return;
 
-    if(cmap->r_buttons & BUTTON_A){
-        Serial.print("A, ");
-        local_button_map |= NES_A;
-    }
+    if(cmap->r_buttons & BUTTON_A)
+        local_button_map |= BTN_A;
 
-    if(cmap->r_buttons & BUTTON_B){
-        Serial.print("B, ");
-        local_button_map |= NES_B;
-    }
+    if(cmap->r_buttons & BUTTON_B)
+        local_button_map |= BTN_B;
 
-    if(cmap->b_buttons & BUTTON_START){
-        Serial.print("START, ");
-        local_button_map |= NES_START;
-    }
+    if(cmap->b_buttons & BUTTON_START)
+        local_button_map |= BTN_START;
 
-    if(cmap->b_buttons & BUTTON_SELECT){
-        Serial.print("SELECT, ");
-        local_button_map |= NES_SELECT;
-    }
+    if(cmap->b_buttons & BUTTON_SELECT)
+        local_button_map |= BTN_SELECT;
 
-    if(0 == cmap->dpad[0]){
-        Serial.print("LEFT, ");
-        local_button_map |= NES_LEFT;
-    }
+    if(0 == cmap->dpad[0])
+        local_button_map |= BTN_LEFT;
 
-    if(cmap->dpad[0] & BUTTON_RIGHT){
-        Serial.print("RIGHT, ");
-        local_button_map |= NES_RIGHT;
-    }
+    if(cmap->dpad[0] & BUTTON_RIGHT)
+        local_button_map |= BTN_RIGHT;
+        
+    if(0 == cmap->dpad[1])
+        local_button_map |= BTN_FORWARD;
 
-    if(0 == cmap->dpad[1]){
-        Serial.print("UP, ");
-        local_button_map |= NES_UP;
-    }
-
-    if(cmap->dpad[1] & BUTTON_DOWN){
-        local_button_map |= NES_DOWN; 
-        Serial.print("DOWN, ");
-    }
-
-    Serial.println("");
+    if(cmap->dpad[1] & BUTTON_DOWN)
+        local_button_map |= BTN_REVERSE; 
 
     /* Set the global byte in one instruction to defeat any race conditions */
-    g_nes_state = local_button_map;
+    g_controller_state = local_button_map;
     
     /* Copy the contents of the map to a cache for later */
     memcpy(&last_map, buf, sizeof(struct retro_map));
