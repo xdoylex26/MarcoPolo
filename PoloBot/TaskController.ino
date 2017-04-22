@@ -63,16 +63,16 @@ void controller_parse(const uint8_t *buf, int len)
 
     if(cmap->dpad[0] & BUTTON_RIGHT)
         local_button_map |= BTN_RIGHT;
-        
+
     if(0 == cmap->dpad[1])
         local_button_map |= BTN_FORWARD;
 
     if(cmap->dpad[1] & BUTTON_DOWN)
-        local_button_map |= BTN_REVERSE; 
+        local_button_map |= BTN_REVERSE;
 
     /* Set the global byte in one instruction to defeat any race conditions */
     g_controller_state = local_button_map;
-    
+
     /* Copy the contents of the map to a cache for later */
     memcpy(&last_map, buf, sizeof(struct retro_map));
 }

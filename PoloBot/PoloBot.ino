@@ -54,7 +54,7 @@ void setup()
     attachInterrupt(Encoder_2.getIntNum(), isr_process_encoder2, RISING);
     Serial.begin(115200);
     prelude_report();
-    
+
     //Set PWM 8KHz
     TCCR1A = _BV(WGM10);
     TCCR1B = _BV(CS11) | _BV(WGM12);
@@ -100,9 +100,9 @@ void loop()
 void buzzer_beep(int state)
 {
     if(1 == state)
-      analogWrite(BUZZER_PORT, 100);
+        analogWrite(BUZZER_PORT, 100);
     else
-      analogWrite(BUZZER_PORT, 0);
+        analogWrite(BUZZER_PORT, 0);
 }
 
 
@@ -111,7 +111,7 @@ void TaskMotion(void *pvParameters)
 {
     /* Default state */
     int latched_controller_state;
-    
+
     for (;;) {
         /* Check if any new information has come over from the controller task */
         ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
@@ -119,7 +119,7 @@ void TaskMotion(void *pvParameters)
         }
 
         /* We can make things simple by assuming only one button will be pressed at a time */
-        switch(latched_controller_state){
+        switch(latched_controller_state) {
         case BNT_NONE:
             buzzer_beep(0);
             motion_halt();
@@ -128,15 +128,15 @@ void TaskMotion(void *pvParameters)
             Encoder_1.moveTo(-999, 150);
             Encoder_2.moveTo(999, 150);
             break;
-        case BTN_REVERSE:       
+        case BTN_REVERSE:
             Encoder_1.moveTo(999, 150);
             Encoder_2.moveTo(-999, 150);
             break;
-        case BTN_LEFT:         
+        case BTN_LEFT:
             Encoder_1.moveTo(-999, 150);
             Encoder_2.moveTo(-999, 150);
             break;
-        case BTN_RIGHT:        
+        case BTN_RIGHT:
             Encoder_1.moveTo(999, 150);
             Encoder_2.moveTo(999, 150);
             break;
@@ -144,16 +144,16 @@ void TaskMotion(void *pvParameters)
             buzzer_beep(1);
             break;
         default:
-          break;
+            break;
         }
 
-        /* 
-         * This ensures we never get to our "target" destintation. 
-         * There really is no "target" we just want to drive in the requested direction 
+        /*
+         * This ensures we never get to our "target" destintation.
+         * There really is no "target" we just want to drive in the requested direction
          */
         Encoder_1.setPulsePos(0);
         Encoder_2.setPulsePos(0);
-        
+
         Encoder_1.loop();
         Encoder_2.loop();
         vTaskDelay(1);

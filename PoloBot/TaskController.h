@@ -5,7 +5,7 @@
 extern volatile uint8_t g_controller_state;
 
 /* Simpler mapping to encode ever button state into a single byte */
-enum controller_map{
+enum controller_map {
     BTN_FORWARD = 0x01,
     BTN_REVERSE = 0x02,
     BTN_LEFT    = 0x04,

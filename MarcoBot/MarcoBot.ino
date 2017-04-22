@@ -68,7 +68,7 @@ void setup()
     attachInterrupt(Encoder_2.getIntNum(), isr_process_encoder2, RISING);
     Serial.begin(115200);
     prelude_report();
-    
+
     //Set PWM 8KHz
     TCCR1A = _BV(WGM10);
     TCCR1B = _BV(CS11) | _BV(WGM12);
@@ -157,13 +157,13 @@ void TaskMotion(void *pvParameters)
             Encoder_1.moveTo(0, 128);
             Encoder_2.moveTo(0, 128);
 
-            /* 
-             * Non-zero means some direction has been determined, other states decode this information to 
-             * determine how to move. This byte should only be set by the ADC ISR 
+            /*
+             * Non-zero means some direction has been determined, other states decode this information to
+             * determine how to move. This byte should only be set by the ADC ISR
              */
-            if(0 != latched_soundHeading){
+            if(0 != latched_soundHeading) {
                 /* Clear the old sound heading after we've latched it */
-                ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+                ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
                     g_soundHeading = 0;
                 }
 
