@@ -6,6 +6,8 @@
 #include <MeAuriga.h>
 #include <Arduino.h>
 #include <util/atomic.h>
+#include "project.h"
+
 #define BUZZER_PORT 45
 
 
@@ -13,7 +15,6 @@ MeEncoderOnBoard Encoder_1(SLOT1); // 1 is right, needs negative value to move f
 MeEncoderOnBoard Encoder_2(SLOT2); // 2 is left, needs positive value to move forward
 volatile int soundVal = 0;
 volatile int g_soundHeading = 0;
-extern volatile uint8_t g_nes_state;
 long int clapTime = 0;
 double const INCHES_PER_TURN = 4.91;
 int const DEGREES_NEEDED_FOR_ROTATION = 2000; // tested empirically
@@ -29,7 +30,6 @@ enum MotionStates   {
 // define tasks
 //void TaskAnalogRead( void *pvParameters );
 void TaskMotion( void *pvParameters );
-void TaskController( void *pvParameters );
 
 void isr_process_encoder1(void)
 {
@@ -67,6 +67,7 @@ void setup()
     attachInterrupt(Encoder_1.getIntNum(), isr_process_encoder1, RISING);
     attachInterrupt(Encoder_2.getIntNum(), isr_process_encoder2, RISING);
     Serial.begin(115200);
+    prelude_report();
 
     //Set PWM 8KHz
     TCCR1A = _BV(WGM10);
@@ -89,14 +90,6 @@ void setup()
     xTaskCreate(
         TaskMotion
         , (const portCHAR *)"Motion"
-        , 128
-        , NULL
-        , 1
-        , NULL );
-
-    xTaskCreate(
-        TaskController
-        , (const portCHAR *)"Controller"
         , 128
         , NULL
         , 1
@@ -141,11 +134,6 @@ void TaskMotion(void *pvParameters)
         break;
 
         case IN_PURSUIT_CHASING: {
-            /* Check if any new information has come over from the controller task */
-            /* If yes, quickly parse the data and translate buttons into motion */
-            if(0 == g_nes_state)    /* No buttons pressed */
-                continue;
-        
             // temps for testing
             double inchesToMove = 24.0;
             double degToMove = (inchesToMove/INCHES_PER_TURN)*360;
@@ -169,19 +157,13 @@ void TaskMotion(void *pvParameters)
             Encoder_1.moveTo(0, 128);
             Encoder_2.moveTo(0, 128);
 
-            /* Check global ADC flagbyte for new heading information; latch the current value to prevent race conditions */
-            ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-                latched_soundHeading = g_soundHeading;
-                g_soundHeading = 0;
-            }
-
-            /* 
-             * Non-zero means some direction has been determined, other states decode this information to 
-             * determine how to move. This byte should only be set by the ADC ISR 
+            /*
+             * Non-zero means some direction has been determined, other states decode this information to
+             * determine how to move. This byte should only be set by the ADC ISR
              */
-            if(0 != latched_soundHeading){
+            if(0 != latched_soundHeading) {
                 /* Clear the old sound heading after we've latched it */
-                ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+                ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
                     g_soundHeading = 0;
                 }
 
