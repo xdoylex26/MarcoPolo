@@ -19,13 +19,13 @@ volatile int g_soundHeading = 0;
 //extern volatile uint8_t g_nes_state;
 long int clapTime = 0;
 double const INCHES_PER_TURN = 4.91;
-int const DEGREES_NEEDED_FOR_ROTATION = 2000; // tested empirically
+int const DEGREES_NEEDED_FOR_ROTATION = 1700; // tested empirically
 
 //Variables required for sound sensor
 int count = 0;
 int channel_A_sound, channel_B_sound, channel_C_sound; //these will store the values of the adc registers
-int max_sound = 225;
-int debounceDelay = 20000;
+int max_sound = 100;
+int debounceDelay = 32000;
 int loud_noise_flag_A, loud_noise_flag_B, loud_noise_flag_C;  //these are the flags when the sound is higher than the max sound
 int noise_state_A, noise_state_B, noise_state_C; //these are the flags for a debounced loud noise on each channel.
 int lastDebounceTime_A, lastDebounceTime_B, lastDebounceTime_C; //these are variables to use for the debounce comparison
@@ -74,7 +74,6 @@ ISR(ADC_vect)
     /* Check if current channel has passed from pre-determined threshold for activation */
     /* If it has, set a global volatile data element (g_soundHeading) to the heading corresponding to the triggered ADC channel's direction */
     /* Disable ADC until enabled again (some other state where we start listening for tones again) */
-    //Serial.println(ADCH);
     if(count == 0) {
       temp = ADCH;
 
@@ -99,12 +98,12 @@ ISR(ADC_vect)
           if(channel_B_sound) {
             bearing = 1;
             no_direction = CLEAR;
-            Serial.println(bearing);
+            //Serial.println(bearing);
           }
           else if (channel_C_sound) {
             bearing = 4;
             no_direction = CLEAR;
-            Serial.println(bearing);  
+            //Serial.println(bearing);  
           }
         }
       }
@@ -143,12 +142,12 @@ ISR(ADC_vect)
           if(channel_A_sound) {
             bearing = 2;
             no_direction = CLEAR;
-            Serial.println(bearing);
+            //Serial.println(bearing);
           }
           else if (channel_C_sound) {
             bearing = 5;
             no_direction = CLEAR;
-            Serial.println(bearing);
+            //Serial.println(bearing);
           }
         }
       }
@@ -187,12 +186,12 @@ ISR(ADC_vect)
           if(channel_A_sound) {
             bearing = 3;
             no_direction = CLEAR;
-            Serial.println(bearing);
+            //Serial.println(bearing);
           }
           else if (channel_B_sound) {
             bearing = 6;
             no_direction = CLEAR;
-            Serial.println(bearing);
+            //Serial.println(bearing);
           }
         }
       }
@@ -241,7 +240,7 @@ void setup()
                       //bit 5 = ADLAR, justification of results in ADC output register, 0 right, 1 left
                       //bit 4:0 = MUX for ADC input source
     ADCSRA |= 1<<ADSC;  //Start conversion
-  
+
     // Set up Encoder / pids
     Encoder_1.setPulse(9);
     Encoder_2.setPulse(9);
@@ -282,13 +281,18 @@ void TaskMotion(void *pvParameters)
         // Need to move, valid sound sensed, probably switch-case for cleaner code
         switch(marcoMotionState) {
         case IN_PURSUIT_TURNING: {
+            ADCSRA &= 0b01111111; // Disable ADC for now
             /* Take latched_soundHeading here and determine how to move */
-            Serial.println("TURNING");
             // But do this so we don't turn more than 180 degs :)
+            if(latched_soundHeading > 180) {
+              latched_soundHeading = latched_soundHeading - 360;  // So we don't go 270 CW, but instead 90 CCW
+            }
             int degToRotate = DEGREES_NEEDED_FOR_ROTATION * (latched_soundHeading / 360.0);
+            Serial.print("TURNING ");
+            Serial.println(latched_soundHeading);
             // 90 deg rotation
-            Encoder_1.moveTo(degToRotate, 150);
-            Encoder_2.moveTo(degToRotate, 150);
+            Encoder_1.moveTo(degToRotate, 120);
+            Encoder_2.moveTo(degToRotate, 120);
             if(abs(Encoder_1.getCurPos()-degToRotate) < 15 && abs(Encoder_2.getCurPos()-degToRotate) < 15) {
                 // Finished turning, now move forward
                 marcoMotionState = IN_PURSUIT_CHASING;
@@ -299,7 +303,7 @@ void TaskMotion(void *pvParameters)
         break;
 
         case IN_PURSUIT_CHASING: {
-          Serial.println("CHASING");
+          //Serial.println("CHASING");
             /* Check if any new information has come over from the controller task */
             /* If yes, quickly parse the data and translate buttons into motion */
             //if(0 == g_nes_state)    /* No buttons pressed */
@@ -310,29 +314,49 @@ void TaskMotion(void *pvParameters)
             double degToMove = (inchesToMove/INCHES_PER_TURN)*360;
 
             // Move 2 ft forward toward sound
-            Encoder_1.moveTo(-degToMove, 150);
-            Encoder_2.moveTo(degToMove, 150);
-            if(abs(Encoder_1.getCurPos()+degToMove) < 15 && abs(Encoder_2.getCurPos()-degToMove) < 15) {
+            Encoder_1.moveTo(-degToMove, 120);
+            Encoder_2.moveTo(degToMove, 120);
+            if(abs(Encoder_1.getCurPos()+degToMove) < 25 && abs(Encoder_2.getCurPos()-degToMove) < 25) {
                 // Finished turning, now move forward
                 /* Enable ADC to begin converting data again, then transfer to WAITING state */
                 marcoMotionState = WAITING_FOR_HEADING;
                 Encoder_1.setPulsePos(0);
                 Encoder_2.setPulsePos(0);
+                Encoder_1.moveTo(0, 128);
+                Encoder_2.moveTo(0, 128);
+
+                vTaskDelay( 2000 / portTICK_PERIOD_MS ); 
+                // Restart the ADC after 2 sec waiting period
+                // Not sure if all of this is needed again, but just toggled ADEN didn't work - mark
+                ADCSRA = 0b10001100;  //0x8F; //Verified
+                                  //bit 7 = ADC Enable
+                                  //bit 6 = ADC Start Conversion
+                                  //bit 5 = ADC Auto Trigger Enable
+                                  //bit 4 = ADC interrupt flag
+                                  //bit 3 = adc interrupt enable
+                                  //bit 2:0 = ADC Prescaler Select Bits
+                ADCSRB = 0b00001000;
+                ADMUX = ADMUX_A;   //0xE5;  //Verified
+                                //bit 7:6 = Reference voltage set to 2.56
+                                  //bit 5 = ADLAR, justification of results in ADC output register, 0 right, 1 left
+                                  //bit 4:0 = MUX for ADC input source
+                ADCSRA |= 1<<ADSC;  //Start conversion
+                no_direction = SET;
             }
         }
         break;
 
         case WAITING_FOR_HEADING:
-            Serial.println("WAITING ");
-            vTaskDelay( 1000 / portTICK_PERIOD_MS );
+            //Serial.println("WAITING ");
+            //vTaskDelay( 3000 / portTICK_PERIOD_MS );            
             //no_direction = SET;  //This is my method to restart the "bearing determination" but this will be something we will do only when we want a new bearing (state machine maybe?
             Encoder_1.setPulsePos(0);
             Encoder_2.setPulsePos(0);
             Encoder_1.moveTo(0, 128);
             Encoder_2.moveTo(0, 128);
-                
+            //vTaskDelay( 1000 / portTICK_PERIOD_MS );    
                 if(!no_direction) {
-                    Serial.print("Bearing is - ");
+                    //Serial.print("Bearing is - ");
                     switch (bearing) { //convert the bearing location to an actual degree value.
                     case 0: 
                       degree = 0;
@@ -359,9 +383,9 @@ void TaskMotion(void *pvParameters)
                       degree = 0;
                     break;
                     }
-                    Serial.println(degree, DEC);
+                    //Serial.println(degree, DEC);
                     no_direction = SET;  //This is my method to restart the "bearing determination" but this will be something we will do only when we want a new bearing (state machine maybe?)
-                    vTaskDelay( 1000 / portTICK_PERIOD_MS );
+                    //vTaskDelay( 1000 / portTICK_PERIOD_MS );
                     latched_soundHeading = degree;  //This is the latch that you had below.  I just brought it into the code that I know works
                     degree = 0; 
                     marcoMotionState = IN_PURSUIT_TURNING;
