@@ -1,3 +1,6 @@
+
+#include <SoftwareSerial.h>
+
 // Final Project v 0.1
 // Microprocessors for Robotics 525.410
 // Doyle 4.11.17
@@ -21,8 +24,10 @@
 
 MeEncoderOnBoard Encoder_1(SLOT1); // 1 is right, needs negative value to move forward
 MeEncoderOnBoard Encoder_2(SLOT2); // 2 is left, needs positive value to move forward
+MeBuzzer buzzer;
 double const INCHES_PER_TURN = 4.91;
 int const DEGREES_NEEDED_FOR_ROTATION = 2000; // tested empirically
+int buzzer_tone = 6000;
 
 // define tasks
 void TaskMotion( void *pvParameters );
@@ -52,6 +57,7 @@ void setup()
 {
     attachInterrupt(Encoder_1.getIntNum(), isr_process_encoder1, RISING);
     attachInterrupt(Encoder_2.getIntNum(), isr_process_encoder2, RISING);
+    buzzer.setpin(BUZZER_PORT);
     Serial.begin(115200);
     prelude_report();
 
@@ -99,8 +105,13 @@ void loop()
 
 void buzzer_beep(int state)
 {
-    if(1 == state)
-        analogWrite(BUZZER_PORT, 100);
+    if(1 == state) {
+        //analogWrite(BUZZER_PORT, 100);
+        buzzer.tone(buzzer_tone, 1000);
+        //Serial.println(buzzer_tone);
+        delay(1000);
+        //buzzer_tone += 50;
+    }
     else
         analogWrite(BUZZER_PORT, 0);
 }
@@ -111,6 +122,7 @@ void TaskMotion(void *pvParameters)
 {
     /* Default state */
     int latched_controller_state;
+    int controller_speed = 80;
 
     for (;;) {
         /* Check if any new information has come over from the controller task */
@@ -125,20 +137,20 @@ void TaskMotion(void *pvParameters)
             motion_halt();
             break;
         case BTN_FORWARD:
-            Encoder_1.moveTo(-999, 150);
-            Encoder_2.moveTo(999, 150);
+            Encoder_1.moveTo(-999, controller_speed);
+            Encoder_2.moveTo(999, controller_speed);
             break;
         case BTN_REVERSE:
-            Encoder_1.moveTo(999, 150);
-            Encoder_2.moveTo(-999, 150);
+            Encoder_1.moveTo(999, controller_speed);
+            Encoder_2.moveTo(-999, controller_speed);
             break;
         case BTN_LEFT:
-            Encoder_1.moveTo(-999, 150);
-            Encoder_2.moveTo(-999, 150);
+            Encoder_1.moveTo(-999, controller_speed);
+            Encoder_2.moveTo(-999, controller_speed);
             break;
         case BTN_RIGHT:
-            Encoder_1.moveTo(999, 150);
-            Encoder_2.moveTo(999, 150);
+            Encoder_1.moveTo(999, controller_speed);
+            Encoder_2.moveTo(999, controller_speed);
             break;
         case BTN_BEEP:
             buzzer_beep(1);
