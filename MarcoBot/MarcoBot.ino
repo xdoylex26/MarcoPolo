@@ -24,8 +24,8 @@ int const DEGREES_NEEDED_FOR_ROTATION = 1700; // tested empirically
 //Variables required for sound sensor
 int count = 0;
 int channel_A_sound, channel_B_sound, channel_C_sound; //these will store the values of the adc registers
-int max_sound = 80;
-unsigned long debounceDelay = 500000;
+int max_sound = 68;
+unsigned long debounceDelay = 80000;
 int loud_noise_flag_A, loud_noise_flag_B, loud_noise_flag_C;  //these are the flags when the sound is higher than the max sound
 int noise_state_A, noise_state_B, noise_state_C; //these are the flags for a debounced loud noise on each channel.
 unsigned long lastDebounceTime_A, lastDebounceTime_B, lastDebounceTime_C; //these are variables to use for the debounce comparison
@@ -84,7 +84,7 @@ ISR(ADC_vect)
     else {
       loud_noise_flag_A = CLEAR;
     }
-
+  
     if (loud_noise_flag_A != last_reading_A) {  //if our flag does not match the last time we had a reading, then we set the time that we got this new loud noise flag to be used to debounce
       lastDebounceTime_A = micros();
     }
@@ -208,7 +208,7 @@ ISR(ADC_vect)
   if (mux == 1) {count++;}
   if (count > 2) {count = 0;}
   ADCSRA |= 1<<ADSC;                                    // Re-start Conversion
-}// loop time takes about 16 microseconds, ~62.5 kHz
+}
 
 
 void setup()
@@ -303,7 +303,7 @@ void TaskMotion(void *pvParameters)
         break;
 
         case IN_PURSUIT_CHASING: {
-            Serial.println("CHASING");
+          Serial.println("CHASING");
             /* Check if any new information has come over from the controller task */
             /* If yes, quickly parse the data and translate buttons into motion */
             //if(0 == g_nes_state)    /* No buttons pressed */
@@ -316,17 +316,14 @@ void TaskMotion(void *pvParameters)
             // Move 2 ft forward toward sound
             Encoder_1.moveTo(-degToMove, 120);
             Encoder_2.moveTo(degToMove, 120);
-            Serial.print(abs(Encoder_1.getCurPos()+degToMove));
-            Serial.print(" ");
-            Serial.println(abs(Encoder_2.getCurPos()-degToMove));
-            if(abs(Encoder_1.getCurPos()+degToMove) < 25 || abs(Encoder_2.getCurPos()-degToMove) < 25) {
+            if(abs(Encoder_1.getCurPos()+degToMove) < 25 && abs(Encoder_2.getCurPos()-degToMove) < 25) {
                 // Finished turning, now move forward
                 /* Enable ADC to begin converting data again, then transfer to WAITING state */
                 marcoMotionState = WAITING_FOR_HEADING;
                 Encoder_1.setPulsePos(0);
                 Encoder_2.setPulsePos(0);
-                Encoder_1.setMotorPwm(0);
-                Encoder_2.setMotorPwm(0);
+                Encoder_1.moveTo(0, 128);
+                Encoder_2.moveTo(0, 128);
 
                 vTaskDelay( 2000 / portTICK_PERIOD_MS ); 
                 // Restart the ADC after 2 sec waiting period
@@ -353,10 +350,10 @@ void TaskMotion(void *pvParameters)
             Serial.println("WAITING ");
             //vTaskDelay( 3000 / portTICK_PERIOD_MS );            
             //no_direction = SET;  //This is my method to restart the "bearing determination" but this will be something we will do only when we want a new bearing (state machine maybe?
-            Encoder_1.reset(0);
-            Encoder_2.reset(0); // Check to make sure this stops motion
-            Encoder_1.setMotorPwm(0);
-            Encoder_2.setMotorPwm(0);
+            Encoder_1.setPulsePos(0);
+            Encoder_2.setPulsePos(0);
+            Encoder_1.moveTo(0, 128);
+            Encoder_2.moveTo(0, 128);
             //vTaskDelay( 1000 / portTICK_PERIOD_MS );    
                 if(!no_direction) {
                     //Serial.print("Bearing is - ");
