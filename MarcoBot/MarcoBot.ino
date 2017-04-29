@@ -25,10 +25,12 @@ int const DEGREES_NEEDED_FOR_ROTATION = 1700; // tested empirically
 int count = 0;
 int channel_A_sound, channel_B_sound, channel_C_sound; //these will store the values of the adc registers
 int max_sound = 68;
-unsigned long debounceDelay = 80000;
+unsigned long debounceDelay = 300000;
+unsigned long settleDelay = 20000;
 int loud_noise_flag_A, loud_noise_flag_B, loud_noise_flag_C;  //these are the flags when the sound is higher than the max sound
 int noise_state_A, noise_state_B, noise_state_C; //these are the flags for a debounced loud noise on each channel.
 unsigned long lastDebounceTime_A, lastDebounceTime_B, lastDebounceTime_C; //these are variables to use for the debounce comparison
+unsigned long lastTimeHighA, lastTimeHighB, lastTimeHighC = 0;
 int last_reading_A, last_reading_B, last_reading_C;   //these store the last values for the loud_noise_flags
 int temp = 0;
 char ADMUX_A = 0b11100011;
@@ -76,13 +78,17 @@ ISR(ADC_vect)
     /* Disable ADC until enabled again (some other state where we start listening for tones again) */
     if(count == 0) {
       temp = ADCH;
-
+    //Serial.println(ADCH);
     //Check to see if the analog input is higher than the threshold
     if(temp >= max_sound) {
       loud_noise_flag_A = SET;
+      lastTimeHighA = micros();
     }
     else {
-      loud_noise_flag_A = CLEAR;
+      if(micros() - lastTimeHighA > settleDelay) {
+        loud_noise_flag_A = CLEAR;
+        //Serial.println("A LOW");
+      }
     }
   
     if (loud_noise_flag_A != last_reading_A) {  //if our flag does not match the last time we had a reading, then we set the time that we got this new loud noise flag to be used to debounce
@@ -90,11 +96,13 @@ ISR(ADC_vect)
     }
     
     if ((micros() - lastDebounceTime_A ) > debounceDelay) {  //If we have had the high loud noise for a certain amount of time we check to see if it's bee high, then we act as if we have a loud noise (debounced)
+
       if(loud_noise_flag_A != noise_state_A) {
         noise_state_A = loud_noise_flag_A;
         if(no_direction && noise_state_A == HIGH) {//if we have a debounced loud noise (debounce time has surpassed and the noise state is high), then we want to check to see if there have been any other
                                                      //legit loud noise on microphones.  If there have, depending on which came first, we determin the direction of the source. Then we clear the no_direction
                                                      //flag to let other programs know that we have a bearing.  If we haven't had another microphone then the current mic is the first to recieve a signal.
+          //Serial.println(" Debounce A ");
           if(channel_B_sound) {
             bearing = 1;
             no_direction = CLEAR;
@@ -124,9 +132,13 @@ ISR(ADC_vect)
      //Check to see if the analog input is higher than the threshold
     if(temp >= max_sound) {
       loud_noise_flag_B = SET;
+      lastTimeHighB = micros();
     }
     else {
-      loud_noise_flag_B = CLEAR;
+      if(micros() - lastTimeHighB > settleDelay) {
+        loud_noise_flag_B = CLEAR;
+        //Serial.println("B LOW");
+      }
     }
   
     if (loud_noise_flag_B != last_reading_B) {  //if our flag does not match the last time we had a reading, then we set the time that we got this new loud noise flag to be used to debounce
@@ -134,11 +146,13 @@ ISR(ADC_vect)
     }
     
     if ((micros() - lastDebounceTime_B ) > debounceDelay) {  //If we have had the high loud noise for a certain amount of time we check to see if it's bee high, then we act as if we have a loud noise (debounced)
+
       if(loud_noise_flag_B != noise_state_B) {
         noise_state_B = loud_noise_flag_B;
         if(no_direction && noise_state_B == HIGH) {//if we have a debounced loud noise (debounce time has surpassed and the noise state is high), then we want to check to see if there have been any other
                                                      //legit loud noise on microphones.  If there have, depending on which came first, we determin the direction of the source. Then we clear the no_direction
                                                      //flag to let other programs know that we have a bearing.  If we haven't had another microphone then the current mic is the first to recieve a signal.
+          //Serial.println(" Debounce B ");
           if(channel_A_sound) {
             bearing = 2;
             no_direction = CLEAR;
@@ -168,9 +182,13 @@ ISR(ADC_vect)
      //Check to see if the analog input is higher than the threshold
     if(temp >= max_sound) {
       loud_noise_flag_C = SET;
+      lastTimeHighC = micros();
     }
     else {
-      loud_noise_flag_C = CLEAR;
+      if(micros() - lastTimeHighC > settleDelay) {
+        loud_noise_flag_C = CLEAR;
+        //Serial.println("C LOW");
+      }
     }
   
     if (loud_noise_flag_C != last_reading_C) {  //if our flag does not match the last time we had a reading, then we set the time that we got this new loud noise flag to be used to debounce
@@ -183,6 +201,7 @@ ISR(ADC_vect)
         if(no_direction && noise_state_C == HIGH) {  //if we have a debounced loud noise (debounce time has surpassed and the noise state is high), then we want to check to see if there have been any other
                                                      //legit loud noise on microphones.  If there have, depending on which came first, we determin the direction of the source. Then we clear the no_direction
                                                      //flag to let other programs know that we have a bearing.  If we haven't had another microphone then the current mic is the first to recieve a signal.
+          //Serial.println(" Debounce C ");
           if(channel_A_sound) {
             bearing = 3;
             no_direction = CLEAR;
@@ -248,8 +267,8 @@ void setup()
     Encoder_2.setRatio(39.267);
     Encoder_1.setPosPid(1.8,0,1.2); // 1.8 0 1.2 orig
     Encoder_2.setPosPid(1.8,0,1.2);
-    Encoder_1.setSpeedPid(.18,0.0,0); // 0.18 0 0 orig
-    Encoder_2.setSpeedPid(.18,0.0,0); // 0.18
+    Encoder_1.setSpeedPid(.5,0.0,0); // 0.18 0 0 orig
+    Encoder_2.setSpeedPid(.5,0.0,0); // 0.18
 
     xTaskCreate(
         TaskMotion
@@ -288,8 +307,8 @@ void TaskMotion(void *pvParameters)
               latched_soundHeading = latched_soundHeading - 360;  // So we don't go 270 CW, but instead 90 CCW
             }
             int degToRotate = DEGREES_NEEDED_FOR_ROTATION * (latched_soundHeading / 360.0);
-            Serial.print("TURNING ");
-            Serial.println(latched_soundHeading);
+            //Serial.print("TURNING ");
+            //Serial.println(latched_soundHeading);
             // 90 deg rotation
             Encoder_1.moveTo(degToRotate, 120);
             Encoder_2.moveTo(degToRotate, 120);
@@ -303,7 +322,7 @@ void TaskMotion(void *pvParameters)
         break;
 
         case IN_PURSUIT_CHASING: {
-          Serial.println("CHASING");
+          //Serial.println("CHASING");
             /* Check if any new information has come over from the controller task */
             /* If yes, quickly parse the data and translate buttons into motion */
             //if(0 == g_nes_state)    /* No buttons pressed */
@@ -316,7 +335,7 @@ void TaskMotion(void *pvParameters)
             // Move 2 ft forward toward sound
             Encoder_1.moveTo(-degToMove, 120);
             Encoder_2.moveTo(degToMove, 120);
-            if(abs(Encoder_1.getCurPos()+degToMove) < 25 && abs(Encoder_2.getCurPos()-degToMove) < 25) {
+            if(abs(Encoder_1.getCurPos()+degToMove) < 25 || abs(Encoder_2.getCurPos()-degToMove) < 25) {
                 // Finished turning, now move forward
                 /* Enable ADC to begin converting data again, then transfer to WAITING state */
                 marcoMotionState = WAITING_FOR_HEADING;
@@ -352,8 +371,15 @@ void TaskMotion(void *pvParameters)
             //no_direction = SET;  //This is my method to restart the "bearing determination" but this will be something we will do only when we want a new bearing (state machine maybe?
             Encoder_1.setPulsePos(0);
             Encoder_2.setPulsePos(0);
-            Encoder_1.moveTo(0, 128);
-            Encoder_2.moveTo(0, 128);
+            //Encoder_1.moveTo(0, 128);
+            //Encoder_2.moveTo(0, 128);
+            Encoder_1.setTarPWM(0);
+            Encoder_2.setTarPWM(0);
+            while(no_direction){
+              Encoder_1.loop();
+              Encoder_2.loop();
+              vTaskDelay( 1 / portTICK_PERIOD_MS );
+              }
             //vTaskDelay( 1000 / portTICK_PERIOD_MS );    
                 if(!no_direction) {
                     //Serial.print("Bearing is - ");
