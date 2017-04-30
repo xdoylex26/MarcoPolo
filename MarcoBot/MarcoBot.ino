@@ -25,8 +25,13 @@ int const DEGREES_NEEDED_FOR_ROTATION = 1700; // tested empirically
 int count = 0;
 int channel_A_sound, channel_B_sound, channel_C_sound; //these will store the values of the adc registers
 int max_sound = 68;
-unsigned long debounceDelay = 300000;
+unsigned long debounceDelay = 250000;
 unsigned long settleDelay = 20000;
+
+//int max_sound = 110;
+//unsigned long debounceDelay = 30000;
+//unsigned long settleDelay = 1000;
+
 int loud_noise_flag_A, loud_noise_flag_B, loud_noise_flag_C;  //these are the flags when the sound is higher than the max sound
 int noise_state_A, noise_state_B, noise_state_C; //these are the flags for a debounced loud noise on each channel.
 unsigned long lastDebounceTime_A, lastDebounceTime_B, lastDebounceTime_C; //these are variables to use for the debounce comparison
